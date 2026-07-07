@@ -1,0 +1,54 @@
+pipeline {
+    agent any
+
+    environment {
+        AWS_DEFAULT_REGION = 'us-east-1'     // Change if your bucket is in another region
+        S3_BUCKET = 'portfolio-2004'
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                git branch: 'main',
+                    url: 'https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPOSITORY.git'
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                sh 'npm install'
+            }
+        }
+
+        stage('Build Project') {
+            steps {
+                sh 'npm run build'
+            }
+        }
+
+        stage('Deploy to S3') {
+            steps {
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'aws-credentials'
+                ]]) {
+
+                    sh '''
+                    aws s3 sync dist/ s3://$S3_BUCKET --delete
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Portfolio deployed successfully!'
+        }
+
+        failure {
+            echo 'Deployment failed!'
+        }
+    }
+}
